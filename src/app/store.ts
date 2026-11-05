@@ -19,6 +19,9 @@ import type { ArchiveMoment } from '../data/archiveMoments'
 // that show up on Today). Nothing persists; a reload starts fresh.
 export type SetupItem = 'archive' | 'todos' | 'leave' | 'instagram'
 
+// A photo's whole camera frame, and where the photo sits in it (fractions)
+export type CaptureSurround = { photo: Blob; crop: { x: number; y: number; width: number; height: number } }
+
 type State = {
   status: Stage | null
   // Optional onboarding step, enabled from the debug panel for demos.
@@ -107,6 +110,11 @@ type State = {
   composing: boolean
   // Photo taken directly from Today's photo prompt, ready for review in Capture.
   capturePhoto: File | null
+  // The camera's whole frame around that photo (it's cropped to the camera's
+  // rectangle), with where the photo sits in it as fractions; the reflection
+  // page's orb shows real photo past the shot when dragged. Null for a photo
+  // picked from her library
+  captureSurround: CaptureSurround | null
   // The camera open inside Today's bubble: where the circle sits (screen
   // pixels, center) and how big it is (points); null while it's closed
   camera: { cx: number; cy: number; size: number } | null
@@ -181,6 +189,7 @@ let state: State = {
   setupDone: [],
   composing: false,
   capturePhoto: null,
+  captureSurround: null,
   camera: null,
   reflections: [],
   stageSplash: null,
