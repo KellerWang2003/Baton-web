@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { navigate } from '../app/navigate'
 import { setState, useDailyPrompt, useStore } from '../app/store'
+import type { CaptureSurround } from '../app/store'
 import { cx } from './cx'
 import { defaultGlassTuning } from './promptGlass'
 import { BackButton } from './BackButton'
@@ -79,7 +80,35 @@ function promptLayout(question: string, size: number, centerY: number): PromptLa
   return { lines, font, lineHeight, top }
 }
 
+// The camera's own full view, so the preview isn't zoomed in (Nov 5). Asking
+// for an exact size like 1280×1600 let the browser crop the camera's frame to
+// that shape before it reached us (Chrome scales and crops to fit; a portrait
+// shape out of a landscape camera kept about a third of it), and the rectangle
+// then cropped it again. So: no shape asked for, the camera's native modes
+// only (resizeMode none), and a size equally far in both directions, so the
+// full-sensor 4:3 mode wins in either orientation.
+function wideView(facing: 'environment' | 'user'): MediaTrackConstraints {
+  return {
+    facingMode: { ideal: facing },
+    width: { ideal: 1920 },
+    height: { ideal: 1920 },
+    // Not in TypeScript's DOM types yet
+    ...({ resizeMode: 'none' } as MediaTrackConstraints),
+  }
+}
+
+// Some cameras open digitally zoomed in (Chrome on Android exposes zoom):
+// set them back to 1x, or their widest if that's above 1x. Not below 1x, which
+// on iPhones would switch to the ultra-wide lens.
+function unzoom(track: MediaStreamTrack | undefined) {
+  const zoom = (track?.getCapabilities?.() as { zoom?: { min: number; max: number } } | undefined)?.zoom
+  if (!track || !zoom) return
+  const target = Math.min(Math.max(1, zoom.min), zoom.max)
+  track.applyConstraints({ advanced: [{ zoom: target } as MediaTrackConstraintSet] }).catch(() => {})
+}
+
 type Box = { left: number; top: number; width: number; height: number; radius: number }
+type Surround = CaptureSurround | null
 
 // The shape as a clip over the whole screen, so the morph only repaints: the
 // camera underneath stays the rectangle's size the whole time instead of being
@@ -193,10 +222,11 @@ export function CameraBubble() {
     const request = devices?.getUserMedia
       ? devices.getUserMedia.bind(devices)
       : () => Promise.reject(new Error('No camera'))
-    request({ video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 1600 } }, audio: false })
+    request({ video: wideView(facing), audio: false })
       .then((media) => {
         if (cancelled) return media.getTracks().forEach((track) => track.stop())
         stream.current = media
+        unzoom(media.getVideoTracks()[0])
         // Selfie-style cameras show the mirror image, like the camera app
         setMirror(media.getVideoTracks()[0]?.getSettings().facingMode !== 'environment')
         // Only on phones (a touch screen with more than one camera)
@@ -252,6 +282,7 @@ export function CameraBubble() {
     if (!target) return
     const frame = video.current
     let blob: Blob | null = null
+    let surround: Surround = null
     if (live && frame?.videoWidth) {
       // Crop the picture to the rectangle, the way it's shown
       const aspect = target.width / target.height
@@ -273,20 +304,41 @@ export function CameraBubble() {
         ctx.drawImage(frame, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height)
         blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9))
       }
+      // The whole frame too, for the orb to show past the shot when dragged
+      // (the crop is centered, so mirroring doesn't move it)
+      const whole = document.createElement('canvas')
+      const fit = Math.min(1, 1920 / Math.max(frame.videoWidth, frame.videoHeight))
+      whole.width = Math.round(frame.videoWidth * fit)
+      whole.height = Math.round(frame.videoHeight * fit)
+      const all = whole.getContext('2d')
+      if (all) {
+        if (mirror) {
+          all.translate(whole.width, 0)
+          all.scale(-1, 1)
+        }
+        all.drawImage(frame, 0, 0, whole.width, whole.height)
+        const photo = await new Promise<Blob | null>((resolve) => whole.toBlob(resolve, 'image/jpeg', 0.85))
+        if (photo) {
+          surround = {
+            photo,
+            crop: { x: sx / frame.videoWidth, y: sy / frame.videoHeight, width: sw / frame.videoWidth, height: sh / frame.videoHeight },
+          }
+        }
+      }
     }
     const picked: Blob = blob ?? (await fetch(placeholderPhoto).then((response) => response.blob()))
     setFlash(true)
     await new Promise((resolve) => setTimeout(resolve, 160))
-    finish(new File([picked], 'prompt-photo.jpg', { type: picked.type || 'image/jpeg' }))
+    finish(new File([picked], 'prompt-photo.jpg', { type: picked.type || 'image/jpeg' }), blob ? surround : null)
   }
 
   // The photo, taken or picked from her library, goes on to be saved
-  const finish = (photo: File) => {
+  const finish = (photo: File, surround: Surround = null) => {
     stop()
     // Where the picture is, so the reflection page can turn it into its orb
     const shown = picture.current?.getBoundingClientRect()
     const captureFrom = shown ? { x: shown.left, y: shown.top, width: shown.width, height: shown.height } : null
-    setState({ capturePhoto: photo, camera: null, composing: false, captureFrom })
+    setState({ capturePhoto: photo, captureSurround: surround, camera: null, composing: false, captureFrom })
     // Always on to the sticky note, where what it's about is read (Keller,
     // Oct 21: never the old Capture page)
     navigate('reflection')

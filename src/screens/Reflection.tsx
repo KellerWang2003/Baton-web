@@ -43,9 +43,14 @@ const LEAVE = { duration: DISSOLVE_MS, easing: 'cubic-bezier(0.45, 0, 0.55, 1)',
 export function Reflection() {
   const prompt = useDailyPrompt()
   const { clouds } = useArchive()
-  const { capturePhoto, captureFrom, addedPhotos, orbMoves, glassTuning } = useStore()
+  const { capturePhoto, captureSurround, captureFrom, addedPhotos, orbMoves, glassTuning } = useStore()
   // Kept for the rest of the session: the photo goes on to LA's cloud
   const photo = useMemo(() => (capturePhoto ? URL.createObjectURL(capturePhoto) : null), [capturePhoto])
+  // The camera's whole frame around it, for the orb to show past the shot
+  const surround = useMemo(
+    () => (capturePhoto && captureSurround ? { src: URL.createObjectURL(captureSurround.photo), crop: captureSurround.crop } : undefined),
+    [capturePhoto, captureSurround],
+  )
   const src = photo ?? FALLBACK_PHOTO
   const [text, setText] = useState('')
   const [category, setCategory] = useState<CloudCategory | null>(null)
@@ -105,7 +110,7 @@ export function Reflection() {
   }, [text, prompt.question])
 
   const leave = () => {
-    setState({ capturePhoto: null })
+    setState({ capturePhoto: null, captureSurround: null })
     goBack()
   }
 
@@ -154,6 +159,7 @@ export function Reflection() {
       // The orb flies from here into its spot (ArchiveDetail)
       arrivingPhoto: at ? { src: cloudSrc, x: at.left, y: at.top, size: at.width, color: filterColor(kind) } : null,
       capturePhoto: null,
+      captureSurround: null,
       selectedFolder: 'la',
       cloudView: null,
       cloudFilter: null,
@@ -187,7 +193,7 @@ export function Reflection() {
 
           {/* Her photo as an orb, its edge glowing the color of what she wrote about */}
           <div ref={orbRef} className="relative z-10 mt-8">
-            <PhotoOrb src={src} size={ORB} category={category} dissolve={adding} moves={orbMoves} tuning={glassTuning} style={{ opacity: morphing ? 0 : 1 }} />
+            <PhotoOrb src={src} surround={surround} size={ORB} category={category} dissolve={adding} moves={orbMoves} tuning={glassTuning} style={{ opacity: morphing ? 0 : 1 }} />
           </div>
 
           {/* What it's about, once the color settles */}

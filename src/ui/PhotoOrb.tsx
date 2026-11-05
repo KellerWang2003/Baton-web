@@ -21,10 +21,12 @@ const RIM_BLEED = 1.06
 // The whole photo shows through the lens (it magnifies the middle), with a
 // full-bleed copy behind it for the glass to bend at the rim
 const PHOTO = 0.5
-// Moving, how much of the box the one photo covers: a little less than all of
-// it, so a short drag reaches its edges (Keller, Oct 21); past them the glass
-// shows the page
-const SPOTLIGHT = 0.7
+// Moving, how much of the box the photo's middle square covers. The lens
+// magnifies about 1.4x: at 0.5 the whole width shows but reads small, at 0.7
+// only the middle half shows (Nov 5: 0.65, between them). Past the square the
+// rest of the shot and a blurred copy carry on (drawPadded), so a drag never
+// shows bare page
+const SPOTLIGHT = 0.65
 // The glass stops a few points inside the rim, so its edge can't darken it
 const INSET = 3
 // Moving, room above and below the glass to travel, as on Today
@@ -61,6 +63,7 @@ export function PhotoOrb({
   glass = true,
   idle = true,
   tuning = defaultGlassTuning,
+  surround,
   style,
   className,
 }: {
@@ -72,6 +75,9 @@ export function PhotoOrb({
   glass?: boolean
   idle?: boolean
   tuning?: GlassTuning
+  // The camera's whole frame around the photo (Real-life's captures), so a
+  // drag shows real photo past the shot
+  surround?: Surround
   style?: CSSProperties
   className?: string
 }) {
@@ -79,7 +85,7 @@ export function PhotoOrb({
   // Moving, the canvas has Today's room above and below for the glass to travel
   const height = moves ? box + DRAG_ROOM * 2 : box
   const mask = `radial-gradient(circle at 50% 50%, black ${size / 2 - INSET - 1}px, transparent ${size / 2 - INSET}px)`
-  const picture = usePicture(src, box, height)
+  const picture = usePicture(src, box, height, surround)
   const [glassReady, setGlassReady] = useState(false)
   const rim = useEased(category ? GLASS_RIM : 0, COLOR_IN_MS)
   // The color stays once it's in, so it can ease out instead of vanishing
@@ -177,20 +183,154 @@ function useEased(target: number, ms: number) {
   return value
 }
 
+// The camera's whole frame around a photo, and where the photo sits in it
+export type Surround = { src: string; crop: { x: number; y: number; width: number; height: number } }
+
+// Moving, the photo for the glass to glide over, centered on the canvas: the
+// middle square (`side` wide) holds what the orb shows at rest. Around it the
+// picture carries on, sharp, well past the glass's edge (Nov 5: the rim of the
+// glass shows photo from further out than the circle, about half the square
+// from the middle, so the blur used to show at the rim): the camera's whole
+// frame when there is one, then the picture mirrored at its edges. Far out it
+// eases slowly into a blurred copy of the same picture, only lightly washed
+// toward the paper at the very ends, so a drag never reaches bare page
+function drawPadded(context: CanvasRenderingContext2D, image: HTMLImageElement, side: number, frame?: { image: HTMLImageElement; crop: Surround['crop'] }) {
+  const { width, height } = context.canvas
+  const cx = width / 2
+  const cy = height / 2
+  const k = side / Math.min(image.naturalWidth, image.naturalHeight)
+  const w = image.naturalWidth * k
+  const h = image.naturalHeight * k
+  // The picture and where it goes: the whole frame placed so the photo inside
+  // it lands where the photo would, or just the photo
+  const source = frame?.image ?? image
+  const rw = frame ? w / frame.crop.width : w
+  const rh = frame ? h / frame.crop.height : h
+  const rx = frame ? cx - w / 2 - frame.crop.x * rw : cx - w / 2
+  const ry = frame ? cy - h / 2 - frame.crop.y * rh : cy - h / 2
+
+  // Sharp everywhere: the picture, with mirrored copies of it all around
+  const full = document.createElement('canvas')
+  full.width = width
+  full.height = height
+  const all = full.getContext('2d')
+  if (!all) return
+  const reach = Math.ceil(Math.max(width / rw, height / rh) / 2) + 1
+  for (let i = -reach; i <= reach; i++) {
+    for (let j = -reach; j <= reach; j++) {
+      all.save()
+      all.translate(rx + i * rw + rw / 2, ry + j * rh + rh / 2)
+      all.scale(i % 2 ? -1 : 1, j % 2 ? -1 : 1)
+      all.drawImage(source, -rw / 2, -rh / 2, rw, rh)
+      all.restore()
+    }
+  }
+
+  // A progressive blur (Nov 5: more gradual): the most blurred copy across
+  // the whole canvas, then ever sharper copies over it, each fading out over
+  // its own wide ring a little further out than the sharper one above it, so
+  // the blur builds up step by step with no band where it starts. The sharp
+  // picture stays fully sharp out past the glass's edge (0.6 of the square
+  // from the middle; at rest the rim shows out to about 0.5)
+  context.imageSmoothingEnabled = true
+  context.imageSmoothingQuality = 'high'
+  context.drawImage(blurred(full, side / 12), 0, 0)
+  // Only at the far ends, a light wash toward the paper
+  const tone = rgb(paper())
+  if (tone) {
+    const wash = context.createRadialGradient(cx, cy, side * 1.2, cx, cy, side * 1.9)
+    wash.addColorStop(0, `rgba(${tone}, 0)`)
+    wash.addColorStop(1, `rgba(${tone}, 0.35)`)
+    context.fillStyle = wash
+    context.fillRect(0, 0, width, height)
+  }
+  // From blurriest to sharp: how blurred (pixels, 0 = sharp), and the ring
+  // it fades out over, in squares from the middle
+  const layers: [number, number, number][] = [
+    [side / 24, 1.15, 1.6],
+    [side / 48, 0.98, 1.35],
+    [side / 96, 0.84, 1.15],
+    [side / 192, 0.72, 0.98],
+    [0, 0.6, 0.84],
+  ]
+  for (const [blur, from, to] of layers) {
+    const layer = blur ? blurred(full, blur) : full
+    const ctx = layer.getContext('2d')
+    if (!ctx) continue
+    ctx.globalCompositeOperation = 'destination-in'
+    const ring = ctx.createRadialGradient(cx, cy, side * from, cx, cy, side * to)
+    for (let t = 0; t <= 1.0001; t += 0.1) {
+      const k = Math.min(1, t)
+      ring.addColorStop(k, `rgba(0,0,0,${(1 - k * k * (3 - 2 * k)).toFixed(3)})`)
+    }
+    ctx.fillStyle = ring
+    ctx.fillRect(0, 0, width, height)
+    context.drawImage(layer, 0, 0)
+  }
+}
+
+// A blurred copy of a canvas, about `radius` pixels soft: halved step by step
+// until that coarse, then scaled back up smoothly (works in every browser),
+// and softened again with the canvas's own blur where it has one
+function blurred(source: HTMLCanvasElement, radius: number) {
+  const { width, height } = source
+  let current = source
+  let scale = 1
+  while (scale * 2 <= radius) {
+    const half = document.createElement('canvas')
+    half.width = Math.max(1, Math.round(current.width / 2))
+    half.height = Math.max(1, Math.round(current.height / 2))
+    const ctx = half.getContext('2d')
+    if (!ctx) break
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(current, 0, 0, half.width, half.height)
+    current = half
+    scale *= 2
+  }
+  const out = document.createElement('canvas')
+  out.width = width
+  out.height = height
+  const ctx = out.getContext('2d')
+  if (!ctx) return out
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.filter = `blur(${Math.max(1, Math.round(radius / 2))}px)`
+  // A step larger all round, so the blur doesn't fade at the edges
+  ctx.drawImage(current, -scale, -scale, width + scale * 2, height + scale * 2)
+  ctx.filter = 'none'
+  return out
+}
+
+// A hex color token as "r, g, b", for canvas gradients that fade it
+function rgb(color: string) {
+  const hex = color.replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return null
+  return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')
+}
+
 // The photo laid out for the glass, cropped square like object-cover: across
 // the box, then again at PHOTO size in the middle. Moving (a taller canvas),
-// it's just the one photo, SPOTLIGHT of the box, in the middle, so it reads as a
-// single picture wherever the glass moves over it, with the page around it
-function usePicture(src: string, box: number, height: number) {
+// it's the one photo, SPOTLIGHT of the box, in the middle, padded out to the
+// canvas's edges (drawPadded), so it reads as a single picture wherever the
+// glass moves over it
+function usePicture(src: string, box: number, height: number, surround?: Surround) {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null)
+  const frameSrc = height === box ? undefined : surround?.src
+  const crop = surround?.crop
   useEffect(() => {
     let alive = true
-    const image = new Image()
-    // Saved captures come from Supabase storage: without this the photo taints
-    // the canvas and the glass can't use it, so it never shows
-    image.crossOrigin = 'anonymous'
-    image.onload = () => {
-      if (!alive) return
+    const load = (url: string) =>
+      new Promise<HTMLImageElement | null>((resolve) => {
+        const image = new Image()
+        // Saved captures come from Supabase storage: without this the photo
+        // taints the canvas and the glass can't use it, so it never shows
+        image.crossOrigin = 'anonymous'
+        image.onload = () => resolve(image)
+        image.onerror = () => resolve(null)
+        image.src = url
+      })
+    Promise.all([load(src), frameSrc ? load(frameSrc) : null]).then(([image, frame]) => {
+      if (!alive || !image) return
       const picture = document.createElement('canvas')
       picture.width = box * 2
       picture.height = height * 2
@@ -201,15 +341,13 @@ function usePicture(src: string, box: number, height: number) {
         drawCover(context, image, 0, 0, box * 2)
         drawCover(context, image, (box * 2 - inner) / 2, (box * 2 - inner) / 2, inner)
       } else {
-        const side = box * 2 * SPOTLIGHT
-        drawCover(context, image, box - side / 2, height - side / 2, side)
+        drawPadded(context, image, box * 2 * SPOTLIGHT, frame && crop ? { image: frame, crop } : undefined)
       }
       setCanvas(picture)
-    }
-    image.src = src
+    })
     return () => {
       alive = false
     }
-  }, [src, box, height])
+  }, [src, box, height, frameSrc, crop])
   return canvas
 }
