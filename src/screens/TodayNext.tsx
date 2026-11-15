@@ -11,12 +11,12 @@ import { Avatar, CityStamp, MapPinIcon, MoveCard, PhotoOrb, PromptWindow, Scrap,
 import { MainLayout } from './MainLayout'
 import { PromptBubbles } from './PromptBubbles'
 import type { BubbleLayout } from './PromptBubbles'
+import { PromptMap } from './PromptMap'
 
-// Prompt bubbles experiment: Today with ?bubbles=a, b or c
-const bubbleLayout = ((): BubbleLayout | null => {
-  const value = new URLSearchParams(window.location.search).get('bubbles')
-  return value === 'a' || value === 'b' || value === 'c' ? value : null
-})()
+// Prompt bubbles experiment: Today with ?bubbles=a, b, c, map or map-frost
+const bubbleParam = new URLSearchParams(window.location.search).get('bubbles')
+const bubbleLayout = bubbleParam === 'a' || bubbleParam === 'b' || bubbleParam === 'c' ? (bubbleParam as BubbleLayout) : null
+const mapFriends = bubbleParam === 'map' ? 'faded' : bubbleParam === 'map-frost' ? 'frost' : null
 
 // IA v2 Today (Nov 15): answers "what about today?". One pick per slot, never
 // a list. Top to bottom: greeting and avatar; the Moving card while "I'm
@@ -44,7 +44,9 @@ export function TodayNext() {
         </div>
       )}
 
-      {bubbleLayout ? (
+      {mapFriends ? (
+        <PromptMap friends={mapFriends} daily={{ question: prompt.question, medium }} />
+      ) : bubbleLayout ? (
         <PromptBubbles layout={bubbleLayout} daily={{ question: prompt.question, medium }} />
       ) : (
         <PromptSlot
@@ -57,7 +59,7 @@ export function TodayNext() {
       )}
 
       <div className="flex flex-col gap-10 pt-2">
-        {!bubbleLayout && <FriendsToday />}
+        {!bubbleLayout && !mapFriends && <FriendsToday />}
         <WorthGoing />
         <Regulars />
       </div>
