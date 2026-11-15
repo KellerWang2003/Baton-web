@@ -5,21 +5,20 @@ import { MapPinIcon, PencilIcon, PromptCameraIcon } from '../ui/icons'
 
 // Prompt pair (experiment, Nov 15; Today with `?bubbles=pair`, from Keller's
 // sketch): today's prompt as a big glass circle, and the prompt from where she
-// is as a second circle tucked behind it at the lower right. Both show their
-// full prompt. No fade or blur yet; friends stay in their row below.
+// is as a second circle tucked behind it at the lower right, overlapping only
+// at the rims so each prompt stays centered in its circle. No fade or blur yet; friends stay in their row below.
 export function PromptPair({ daily }: { daily: { question: string; medium: 'photo' | 'write' } }) {
   return (
     <div className="relative -mx-gutter mt-6 h-[400px]">
       <Circle
         className="z-0"
-        style={{ left: 172, top: 160, width: 216, height: 216 }}
-        inset="pt-[30%] pl-[26%] pr-[12%]"
+        style={{ left: 185, top: 190, width: 200, height: 200 }}
         question={placePrompt.question}
         medium="photo"
         place={placePrompt.place}
         fontSize={17}
       />
-      <Circle className="z-10" style={{ left: 40, top: 0, width: 260, height: 260 }} question={daily.question} medium={daily.medium} fontSize={22} />
+      <Circle className="z-10" style={{ left: 30, top: 0, width: 250, height: 250 }} question={daily.question} medium={daily.medium} fontSize={22} />
     </div>
   )
 }
