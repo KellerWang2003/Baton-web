@@ -4,6 +4,7 @@
 import type { Stage } from '../flow'
 import type { RecTone } from '../ui'
 import { intention } from './stages'
+import type { CityId } from './move'
 
 export type RelayCategory = 'food' | 'groceries' | 'exercise' | 'housing' | 'getting-around' | 'setup' | 'hobbies' | 'feelings'
 
@@ -61,6 +62,8 @@ export type RelayItem = {
   // Free Unsplash photos in public/relay/ (named by id); missing shows the placeholder
   photo?: string
   notes: RelayNote[]
+  // IA v2: which city it's in (New York when missing)
+  city?: CityId
 }
 
 export const leavers: RelayLeaver[] = [
@@ -382,6 +385,122 @@ export const relayItems: RelayItem[] = [
   },
 ]
 
+// IA v2: Relay in Los Angeles, where she lives before the move (her own photos
+// stand in for now)
+export const laLeavers: RelayLeaver[] = [
+  { id: 'priya', name: 'Priya', left: 'Left LA in August', match: 'Illustrator, Sunday markets' },
+  { id: 'leo', name: 'Leo', left: 'Left LA in 2025', match: 'Runs before class, cooks at home' },
+]
+
+const laItems: RelayItem[] = [
+  {
+    id: 'la-tacos',
+    city: 'la',
+    photo: '/archive/la-tacos-1.jpg',
+    source: { kind: 'baton', why: 'Open till 2, ten minutes from your studio.' },
+    title: "Leo's Tacos truck",
+    category: 'food',
+    place: 'La Brea · nightly',
+    body: 'The al pastor is carved off the spit while you wait. The line moves fast after 11.',
+    notes: [{ from: 'Kai', detail: 'Local since 2022', text: 'Cash is faster.' }],
+  },
+  {
+    id: 'la-runyon',
+    city: 'la',
+    photo: '/archive/la-sunset.jpg',
+    source: { kind: 'baton', why: 'You hike on Sundays. Go up 30 min before sunset.' },
+    title: 'Runyon Canyon',
+    category: 'exercise',
+    place: 'Hollywood Hills',
+    body: 'Take the east trail up and the fire road down. The view opens up right at the bench.',
+    notes: [],
+  },
+  {
+    id: 'la-broad',
+    city: 'la',
+    photo: '/wrapped/m05-may03.jpg',
+    source: { kind: 'baton', why: 'Free on Thursdays after 5, like your studio crowd.' },
+    title: 'The Broad',
+    category: 'hobbies',
+    place: 'Downtown LA',
+    body: 'Book the free timed tickets a week out. Thursday nights are quieter than weekends.',
+    notes: [{ from: 'Mina', detail: 'Local since 2023', text: 'Skip the Infinity Room line, go straight up.' }],
+  },
+  {
+    id: 'la-matcha',
+    city: 'la',
+    photo: '/wrapped/m18-mar21.jpg',
+    source: { kind: 'baton', why: 'Two blocks from Philz, for when you want a change.' },
+    title: 'Cha Cha Matcha',
+    category: 'food',
+    place: 'Silver Lake',
+    body: 'The iced strawberry matcha is the one. Tables outside get morning sun.',
+    notes: [],
+  },
+  {
+    id: 'larchmont',
+    city: 'la',
+    photo: '/wrapped/m07-oct26.jpg',
+    source: { kind: 'leaver', leaver: 'priya' },
+    title: "Larchmont market's last Sunday",
+    quote: 'The ceramics table only comes on the last Sunday.',
+    category: 'groceries',
+    place: 'Larchmont Blvd · Sundays 10–2',
+    body: 'The last Sunday of the month has the ceramics and flower stalls. Go before noon, park on Lucerne.',
+    notes: [{ from: 'Jess', detail: 'Local since 2021', text: 'Still true. Got two bowls last month.' }],
+  },
+  {
+    id: 'la-pier',
+    city: 'la',
+    photo: '/wrapped/m23-nov07.jpg',
+    source: { kind: 'leaver', leaver: 'priya' },
+    title: "Priya's end of the trail",
+    quote: 'Walk past the sign to the end of the pier at golden hour.',
+    category: 'hobbies',
+    place: 'Santa Monica Pier',
+    body: 'Everyone stops at the Route 66 sign. Keep walking to the end of the pier and draw the fishermen.',
+    notes: [],
+  },
+  {
+    id: 'la-park',
+    city: 'la',
+    photo: '/wrapped/m19-may09.jpg',
+    source: { kind: 'leaver', leaver: 'leo' },
+    title: "Leo's Sunday park",
+    quote: 'Bring a blanket and stay till the light goes.',
+    category: 'exercise',
+    place: 'Griffith Park · Fern Dell',
+    body: 'Run the loop by Fern Dell, then lie on the big lawn. Shade under the oaks after 2.',
+    notes: [],
+  },
+  {
+    id: 'la-grocer',
+    city: 'la',
+    photo: '/wrapped/m11-apr19.jpg',
+    source: { kind: 'leaver', leaver: 'leo' },
+    title: "Leo's Trader Joe's",
+    quote: 'Silver Lake TJ’s, Tuesday at 8 am. Empty.',
+    category: 'groceries',
+    place: 'Silver Lake',
+    body: 'The lot is full by 10. Weekday mornings you get in and out in fifteen minutes.',
+    notes: [],
+  },
+]
+
+relayItems.push(...laItems)
+
+// Relay by city (IA v2): Baton's picks and leavers' rows for LA or New York
+export function cityPicks(city: CityId, stage: Stage) {
+  return city === 'la' ? laItems.filter((item) => item.source.kind === 'baton') : relayPicks(stage)
+}
+
+export function cityLeavers(city: CityId) {
+  return city === 'la' ? laLeavers : leavers
+}
+
+// The chips in IA v2's Relay, after Saved and All
+export const relayChipIds: RelayCategory[] = ['food', 'groceries', 'exercise', 'hobbies']
+
 export const relayHeaders: Record<Stage, { picks: string; people: string }> = {
   moving: { picks: 'Based on your life in LA', people: 'From people with similar lifestyle' },
   newcomer: { picks: 'Based on your life in LA', people: 'From people with similar lifestyle' },
@@ -391,7 +510,7 @@ export const relayHeaders: Record<Stage, { picks: string; people: string }> = {
 // Baton's picks for her stage: intention picks once she has set one (last night in LA)
 export function relayPicks(stage: Stage) {
   return relayItems.filter(
-    (item) => item.source.kind === 'baton' && (stage !== 'moving' || !item.source.forIntention),
+    (item) => !item.city && item.source.kind === 'baton' && (stage !== 'moving' || !item.source.forIntention),
   )
 }
 
@@ -400,7 +519,7 @@ export function leaverTips(leaverId: string) {
 }
 
 export function findLeaver(id: string) {
-  return leavers.find((leaver) => leaver.id === id)
+  return [...leavers, ...laLeavers].find((leaver) => leaver.id === id)
 }
 
 // Relay's search page: a few recent searches to start with, and suggestions
@@ -417,6 +536,13 @@ export const relayCopy = {
   searchResults: (count: number) => `${count} ${count === 1 ? 'result' : 'results'}`,
   searchNone: (query: string) => `Nothing for “${query}” yet. Try a place, a feeling or someone’s name.`,
   all: 'All',
+  saved: 'Saved',
+  searchIn: (city: string) => `Search ${city}`,
+  forYou: 'For you',
+  savedEmpty: 'Nothing saved here yet.',
+  save: 'Save',
+  stillTrue: 'Still true?',
+  stillTrueDone: 'Still true',
   map: 'Map view',
   legacy: (name: string) => `${name}’s legacy`,
   noResults: 'Nothing here yet. Try another category.',

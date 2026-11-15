@@ -32,3 +32,24 @@ export const profile = {
     local: 'Building a life in New York, one everyday moment at a time.',
   } satisfies Record<Stage, string>,
 }
+
+// IA v2 Profile (Nov 15): no stages. Section titles and rows.
+export const profileNext = {
+  cities: 'Cities',
+  cityList: [
+    { id: 'seoul', name: 'Seoul', years: '2003–2022' },
+    { id: 'chicago', name: 'Chicago', years: '2022' },
+    { id: 'la', name: 'Los Angeles', years: '2022–' },
+  ],
+  lifestyle: 'Lifestyle',
+  intentions: 'Intentions',
+  tags: 'Tags',
+  friends: 'Friends',
+  friendsSee: 'They see only your prompt answers',
+  friendList: ['Jess', 'Kai', 'Mina', 'Marco', 'Priya', 'Leo'],
+  moving: "I'm moving",
+  to: 'To',
+  date: 'Leaving',
+  settings: 'Settings',
+  settingsRows: ['Notifications', 'Privacy', 'Instagram tag', 'Account'],
+}

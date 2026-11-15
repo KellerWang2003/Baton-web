@@ -1,19 +1,23 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { setState, useStore } from '../app/store'
+import { setState, toggleIn, toggleSaved, useStore } from '../app/store'
 import { chloe } from '../data/people'
 import { findLeaver, relayCategory, relayCopy, relayItems, relayAvatar, relayPlaceholderPhoto } from '../data/relay'
-import { ArrowRightIcon, Avatar, BatonMark, Button, Chip, cx, MapPinIcon, Scrap, Screen } from '../ui'
+import { ArrowRightIcon, Avatar, BatonMark, BookmarkButton, Button, Chip, cx, MapPinIcon, Scrap, Screen } from '../ui'
 
 
 // Pushed page for one Relay pick or tip: the full story, who it came from,
 // and notes people left on it. Notes go on a recommendation, never on a whole
 // legacy.
 export function RelayDetail() {
-  const { selectedRec, relayNotes } = useStore()
+  const { selectedRec, relayNotes, saved, stillTrue } = useStore()
   const item = relayItems.find((rec) => rec.id === selectedRec) ?? relayItems[0]
   const leaver = item.source.kind === 'leaver' ? findLeaver(item.source.leaver) : undefined
   const mine = relayNotes[item.id] ?? []
   const category = relayCategory(item.category)
+  // IA v2: save to that city's Saved list, and confirm it's still true
+  const city = item.city ?? 'ny'
+  const isSaved = saved[city].includes(item.id)
+  const confirmed = stillTrue.includes(item.id)
   const [writing, setWriting] = useState(false)
   const [draft, setDraft] = useState('')
   const notesEnd = useRef<HTMLDivElement>(null)
@@ -45,10 +49,20 @@ export function RelayDetail() {
         background="bg-baton-paper"
         onBack
         footer={
-          <Button block variant="glow" size="cta" onClick={() => setWriting(true)}>
-            {relayCopy.leaveNote}
-            <ArrowRightIcon />
-          </Button>
+          <div className="flex items-center gap-3">
+            <BookmarkButton saved={isSaved} onToggle={() => toggleSaved(city, item.id)} label={relayCopy.save} className="size-14 bg-card shadow-sm" />
+            <button
+              type="button"
+              aria-pressed={confirmed}
+              onClick={() => setState((s) => ({ stillTrue: toggleIn(s.stillTrue, item.id) }))}
+              className={cx('h-14 shrink-0 rounded-full px-4 text-body font-medium shadow-sm transition active:scale-95', confirmed ? 'bg-brand text-on-brand' : 'bg-card text-ink')}
+            >
+              {confirmed ? relayCopy.stillTrueDone : relayCopy.stillTrue}
+            </button>
+            <Button block variant="glow" size="cta" onClick={() => setWriting(true)} className="min-w-0 flex-1 whitespace-nowrap">
+              {relayCopy.leaveNote}
+            </Button>
+          </div>
         }
       >
         <div className="flex flex-col gap-6 pt-1">

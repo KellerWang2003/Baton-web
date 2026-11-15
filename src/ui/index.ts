@@ -43,7 +43,7 @@ export { RecentPhotos } from './RecentPhotos'
 export type { PhotoItem } from './RecentPhotos'
 export { Screen } from './Screen'
 export { SetupCard } from './SetupCard'
-export { MomentCard, TodayCard } from './TodayCard'
+export { MomentCard, MoveCard, TodayCard } from './TodayCard'
 export { PickCard } from './PickCard'
 export { TodoCard } from './TodoCard'
 export { TodoKindIcon } from './TodoKindIcon'
@@ -93,3 +93,4 @@ export {
   TodayIcon,
 } from './icons'
 export { pickedGoalFill } from './goalBubble'
+export { CityStamp } from './CityStamp'

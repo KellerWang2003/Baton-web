@@ -103,3 +103,35 @@ export function MomentCard({ stage, eyebrow, title, subtitle, photo, onClick }: 
     </button>
   )
 }
+
+type MoveCardProps = {
+  stamp: ReactNode
+  big: string
+  next: string
+  onClick: () => void
+}
+
+// IA v2: the Moving card at the top of Today while "I'm moving" is on. Blue
+// like the Moving stage, the city sticker, the countdown big, the next to-do,
+// and a round arrow that opens Your move.
+export function MoveCard({ stamp, big, next, onClick }: MoveCardProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        'flex w-full items-center gap-4 rounded-card p-4 text-left shadow-today-card transition active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand',
+        stageTones.moving,
+      )}
+    >
+      {stamp}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="font-display text-greeting leading-none">{big}</span>
+        <span className="truncate text-today-detail opacity-85">{next}</span>
+      </span>
+      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-baton-paper text-baton-navy">
+        <ArrowRightIcon />
+      </span>
+    </button>
+  )
+}

@@ -22,6 +22,8 @@ type MainLayoutProps = {
   profile?: boolean
   // Page background class (Relay sits on the paper color, like Archive)
   background?: string
+  // The stage tag under the avatar (off in IA v2, which has no stages)
+  stageTag?: boolean
 }
 
 type TabShellProps = {
@@ -38,7 +40,7 @@ const tabIcons: Record<string, ReactNode> = {
 // Page layout for the three tab pages. No top bar: on Today the greeting
 // and profile avatar scroll together with the page.
 // Pushed pages (Profile) use Screen directly, without the tab bar.
-export function MainLayout({ title, subtitle, children, bleed = false, profile = false, background }: MainLayoutProps) {
+export function MainLayout({ title, subtitle, children, bleed = false, profile = false, background, stageTag = true }: MainLayoutProps) {
   const status = useStatus()
   const greeting = title && (
     // One sentence in one style, the second part on its own line, 30pt in
@@ -62,7 +64,7 @@ export function MainLayout({ title, subtitle, children, bleed = false, profile =
         >
           {/* 48pt picture with the stage tag overlapping its bottom by 4pt (Figma 617:2838) */}
           <Avatar name={chloe.name} src={chloe.avatar} size="lg" className="size-12" />
-          <StageTag stage={status} label={stageTags[status]} className="absolute top-11 left-1/2 -translate-x-1/2" />
+          {stageTag && <StageTag stage={status} label={stageTags[status]} className="absolute top-11 left-1/2 -translate-x-1/2" />}
         </button>
       )}
     </header>

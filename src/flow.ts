@@ -27,6 +27,9 @@ import { SignUp } from './screens/SignUp'
 import { Splash } from './screens/Splash'
 import { Today, TodayLastWeek } from './screens/Today'
 import { Todos } from './screens/Todos'
+import { TodayNext } from './screens/TodayNext'
+import { YourMove } from './screens/YourMove'
+import { ProfileNext } from './screens/ProfileNext'
 
 export type Stage = 'moving' | 'newcomer' | 'local'
 
@@ -56,13 +59,17 @@ export const flow: FlowScreen[] = [
   { id: 'photos', title: 'Onboarding: photo access', stage: 'moving', component: PhotoAccess },
   { id: 'welcome', title: 'Onboarding: welcome splash', stage: 'moving', component: Splash },
   // 2. Today, Moving, with the setup list (each item opens a setup page)
-  { id: 'today', title: 'Today', stage: 'moving', component: Today },
+  // IA v2 (Nov 15): Today is the base app; the moving layer adds Your move
+  { id: 'today', title: 'Today', stage: 'moving', component: TodayNext },
+  { id: 'move', title: 'Your move', stage: 'moving', component: YourMove, parent: 'today' },
+  // The stage version of Today (before IA v2), kept for the debug panel
+  { id: 'today-stages', title: 'Today (stages, old)', stage: 'moving', component: Today, tab: 'today' },
   { id: 'setup-archive', title: 'Setup: organize archive', stage: 'moving', component: Places, parent: 'today' },
   { id: 'setup-todos', title: 'Setup: logistics to-dos', stage: 'moving', component: Todos, parent: 'today' },
   { id: 'setup-leave', title: 'Setup: leave date', stage: 'moving', component: LeaveDate, parent: ['today', 'profile'] },
-  { id: 'setup-instagram', title: 'Setup: Instagram tag', stage: 'moving', component: InstagramTag, parent: 'today' },
+  { id: 'setup-instagram', title: 'Setup: Instagram tag', stage: 'moving', component: InstagramTag, parent: ['today', 'move'] },
   { id: 'archive', title: 'Archive', stage: 'moving', component: Archive },
-  { id: 'archive-detail', title: 'Archive: city detail', stage: 'moving', component: ArchiveDetail, parent: 'archive' },
+  { id: 'archive-detail', title: 'Archive: city detail', stage: 'moving', component: ArchiveDetail, parent: ['archive', 'move'] },
   { id: 'archive-selected', title: 'Archive: a photo opened', stage: 'moving', component: ArchiveSelected, parent: 'archive-detail' },
   { id: 'community', title: 'Relay', stage: 'moving', component: Community },
   // Relay's search icon opens its own page, like search in iOS apps
@@ -70,7 +77,8 @@ export const flow: FlowScreen[] = [
   { id: 'capture', title: 'Capture (+)', stage: 'moving', component: Capture, parent: 'today' },
   // Debug > Real-life: writing a line about the photo just taken
   { id: 'reflection', title: 'Real-life: reflection', stage: 'moving', component: Reflection, parent: 'today' },
-  { id: 'profile', title: 'Profile', stage: 'moving', component: Profile, parent: 'today' },
+  { id: 'profile', title: 'Profile', stage: 'moving', component: ProfileNext, parent: 'today' },
+  { id: 'profile-stages', title: 'Profile (stages, old)', stage: 'moving', component: Profile, parent: 'today' },
   // 6. Before her last night in LA: her intentions for New York (from Profile)
   { id: 'intentions', title: 'Profile: intentions for New York', stage: 'moving', component: Intentions, parent: 'profile' },
   { id: 'intentions-set', title: 'Your next chapter in New York', stage: 'moving', component: IntentionsSet },
@@ -87,7 +95,7 @@ export const flow: FlowScreen[] = [
   // ...and its Continue: her LA folder hands off to a new New York one, with her goals
   { id: 'newcomer-now', title: "You're a Newcomer now", stage: 'newcomer', component: NewcomerNow },
   // 9. Recommendation detail: a Relay pick or tip, with notes on it
-  { id: 'relay-detail', title: 'Relay: recommendation detail', stage: 'newcomer', component: RelayDetail, parent: ['community', 'relay-search'] },
+  { id: 'relay-detail', title: 'Relay: recommendation detail', stage: 'newcomer', component: RelayDetail, parent: ['community', 'relay-search', 'today', 'move'] },
   // 10. Local: the congrats splash as she becomes a Local
   { id: 'local-splash', title: "Stage change: you're a Local", stage: 'local', component: LocalSplash },
   // ...whose button opens the insight page: LA vs New York, her intention, the café bookend

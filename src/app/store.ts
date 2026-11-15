@@ -7,6 +7,8 @@ import { leave } from '../data/today'
 import { relaySearchSeed } from '../data/relay'
 import type { ArchiveSketchId } from '../data/archiveSketches'
 import type { Stage } from '../flow'
+import { mockMove } from '../data/move'
+import type { CityId } from '../data/move'
 import { defaultGlassTuning } from '../ui/promptGlass'
 import type { GlassTuning, PromptGlass } from '../ui/promptGlass'
 import type { ConfettiVariant } from '../ui/confettiVariants'
@@ -24,6 +26,23 @@ export type CaptureSurround = { photo: Blob; crop: { x: number; y: number; width
 
 type State = {
   status: Stage | null
+  // IA v2 (Nov 15): one base app plus a moving layer. "I'm moving" on Profile
+  // (or Debug > Demo) turns it on: the Moving card on Today and the second city
+  // stamp in Relay. `landed` is the after-landing half (about 30 days).
+  moving: boolean
+  moveCity: string
+  moveDate: string
+  landed: boolean
+  // Which city Relay shows; null follows where she lives
+  relayCity: CityId | null
+  // Relay picks she saved, per city
+  saved: Record<CityId, string[]>
+  // Relay shows only the saved picks of that city (the Saved chip)
+  relaySaved: boolean
+  // Relay picks she marked "Still true?"
+  stillTrue: string[]
+  // Her answer on Today's regulars card (becomes a legacy tip)
+  regularsTip: string
   // Optional onboarding step, enabled from the debug panel for demos.
   onboardingPhotoAccess: boolean
   // Debug: Today's orb moves like before (drag, wobble, spin, scroll nudge)
@@ -136,6 +155,15 @@ type State = {
 
 let state: State = {
   status: null,
+  moving: false,
+  moveCity: mockMove.city,
+  moveDate: mockMove.date,
+  landed: false,
+  relayCity: null,
+  saved: { la: [], ny: ['cafe', 'studio'] },
+  relaySaved: false,
+  stillTrue: [],
+  regularsTip: '',
   onboardingPhotoAccess: false,
   // Keller, Oct 21: the moving glass orb on Today is the default again
   orbMoves: true,
@@ -243,6 +271,27 @@ export function changeStage(next: Stage) {
 // panel. Screens opened directly start her as Moving.
 export function useStatus(): Stage {
   return useStore().status ?? 'moving'
+}
+
+// IA v2: turn the moving layer on or off, or move it to after landing. The old
+// stage-keyed content (prompts, Archive's New York folder) follows along:
+// before landing reads as Moving, after landing as Newcomer.
+export function setMove(patch: { moving?: boolean; landed?: boolean }) {
+  setState((s) => {
+    const moving = patch.moving ?? s.moving
+    const landed = moving && (patch.landed ?? s.landed)
+    return { moving, landed, status: landed ? 'newcomer' : 'moving', relayCity: null, relaySaved: false, promptIndex: null }
+  })
+}
+
+// Where she lives: New York once she has landed
+export function useHomeCity(): CityId {
+  const { moving, landed } = useStore()
+  return moving && landed ? 'ny' : 'la'
+}
+
+export function toggleSaved(city: CityId, id: string) {
+  setState((s) => ({ saved: { ...s.saved, [city]: toggleIn(s.saved[city], id) } }))
 }
 
 // The time Today goes by: the clock, ticking each minute, or the middle of the

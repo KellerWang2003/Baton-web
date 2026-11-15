@@ -9,7 +9,7 @@ import { promptsFor, slotAt, timeSlots } from '../data/dailyPrompts'
 import type { TimeSlot } from '../data/dailyPrompts'
 import { frameLimits } from './useFrameSize'
 import type { FrameSettings } from './useFrameSize'
-import { changeStage, setState, useNow, useStatus, useStore } from './store'
+import { changeStage, setMove, setState, useNow, useStatus, useStore } from './store'
 import { clearSavedCaptures } from './supabase'
 
 type DebugPanelProps = {
@@ -420,6 +420,9 @@ export function DebugPanel({ index, goTo, framed, toggleFrame, frame, updateFram
 
         {tab === 'Demo' && (
           <>
+            <Group title="Moving (IA v2)" note="Moving shows the Moving card on Today and the NY stamp in Relay. Landed is the first month in New York.">
+              <MoveToggles />
+            </Group>
             <Group title="Today">
               <PromptPicker />
             </Group>
@@ -520,6 +523,16 @@ function PlaygroundLink({ label, open, onClick }: { label: string; open: boolean
 // Real-life: for filming someone using the app for real on a phone. Today
 // asks for a photo of their school building, the orb opens the live camera
 // (with a back arrow), and the photo goes on to a page to write a line about it
+function MoveToggles() {
+  const { moving, landed } = useStore()
+  return (
+    <>
+      <DebugToggle label="I'm moving" on={moving} onClick={() => setMove({ moving: !moving })} />
+      <DebugToggle label="Landed" on={landed} onClick={() => setMove({ moving: true, landed: !landed })} />
+    </>
+  )
+}
+
 function RealLife({ goToToday }: { goToToday: () => void }) {
   const { realLife } = useStore()
   return (

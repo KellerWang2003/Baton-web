@@ -235,6 +235,14 @@ export const archiveDetail: Record<string, Record<Stage, ArchiveDetailContent>> 
             { ...laPlaces[3], visibility: 'private' },
           ],
         },
+        // IA v2: her answers on Today's regulars card become legacy tips
+        {
+          header: 'Your regulars’ tips',
+          entries: [
+            { title: '"The window seat gets the morning light. Go before 9."', detail: 'Philz Coffee · 14×' },
+            { title: '"Trader Joe’s next door, so I always end up here."', detail: 'Lake Ave Café · 214 photos' },
+          ],
+        },
         {
           header: 'Notes on your legacy',
           entries: [{ title: '"Went to your café on day two. You were right about the window."', detail: 'Jess · moved to LA in January' }],
@@ -251,6 +259,14 @@ export const archiveDetail: Record<string, Record<Stage, ArchiveDetailContent>> 
             { ...laPlaces[1], visibility: 'community' },
             { ...laPlaces[2], visibility: 'community' },
             { ...laPlaces[3], visibility: 'private' },
+          ],
+        },
+        // IA v2: her answers on Today's regulars card become legacy tips
+        {
+          header: 'Your regulars’ tips',
+          entries: [
+            { title: '"The window seat gets the morning light. Go before 9."', detail: 'Philz Coffee · 14×' },
+            { title: '"Trader Joe’s next door, so I always end up here."', detail: 'Lake Ave Café · 214 photos' },
           ],
         },
         {

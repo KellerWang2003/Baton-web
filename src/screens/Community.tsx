@@ -1,10 +1,12 @@
 import { Suspense, lazy, useRef, useState } from 'react'
 import { navigate } from '../app/navigate'
-import { setState, useStatus, useStore } from '../app/store'
-import { leavers, leaverTips, relayCategories, relayCategory, relayCopy, relayHeaders, relayPicks, relayPlaceholderPhoto } from '../data/relay'
+import { setState, useHomeCity, useStatus, useStore } from '../app/store'
+import { cities } from '../data/move'
+import type { CityId } from '../data/move'
+import { cityLeavers, cityPicks, leaverTips, relayCategory, relayChipIds, relayCopy, relayHeaders, relayItems, relayPlaceholderPhoto } from '../data/relay'
 import { homeSpot, mapNeighborhoods, relaySpots } from '../data/mapSpots'
 import type { RelayCategory, RelayItem } from '../data/relay'
-import { Button, CategoryChip, MapIcon, SearchIcon, cx, relayChipIdle, relayPage } from '../ui'
+import { CategoryChip, CityStamp, MapIcon, SearchIcon, cx, relayChipIdle, relayPage } from '../ui'
 import { useRelayEntrance } from '../ui/relayEntrance'
 import { MainLayout } from './MainLayout'
 import { RelayFeed } from './RelayFeed'
@@ -27,10 +29,15 @@ function open(id: string) {
 // (the AllTrails list/map pattern) to show the same picks as pins on a map.
 export function Community() {
   const status = useStatus()
-  const { relayMap: mapOpen, relayFilter, relayLook, relayEntrance, relayEntranceSpeed } = useStore()
+  const { relayMap: mapOpen, relayFilter, relayLook, relayEntrance, relayEntranceSpeed, relayCity, relaySaved, saved, moving, landed } = useStore()
+  // IA v2: Relay shows her city; while she's moving, the other city's stamp
+  // peeks behind and switches to it
+  const home = useHomeCity()
+  const city: CityId = relayCity ?? home
+  const other: CityId | null = moving && !landed ? (city === 'la' ? 'ny' : 'la') : relayCity && relayCity !== home ? home : null
   const entranceRef = useRef<HTMLDivElement>(null)
   const category = relayFilter as RelayCategory | null
-  useRelayEntrance(entranceRef, relayEntrance, relayEntranceSpeed, `${status}:${relayLook}:${relayFilter}`)
+  useRelayEntrance(entranceRef, relayEntrance, relayEntranceSpeed, `${status}:${relayLook}:${relayFilter}:${city}:${relaySaved}`)
   const [pinned, setPinned] = useState<string | null>(null)
   // Where the press on the peek started; mouse and pen drags also keep recent
   // samples for a flick and the phone frame's scale, so the sheet stays under the pointer
@@ -38,9 +45,9 @@ export function Community() {
   // How far the sheet is being pulled up right now (negative), while a finger is on it
   const [pull, setPull] = useState<number | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  const shown = (item: RelayItem) => !category || item.category === category
+  const shown = (item: RelayItem) => (!category || item.category === category) && (!relaySaved || saved[city].includes(item.id))
   const setCategory = (id: RelayCategory | null) => {
-    setState({ relayFilter: id })
+    setState({ relayFilter: id, relaySaved: false })
     setPinned(null)
   }
   const showMap = (on: boolean) => {
@@ -50,13 +57,15 @@ export function Community() {
     setPinned(null)
   }
 
-  const picks = relayPicks(status).filter(shown)
-  const people = leavers
+  // The Saved chip lists every saved pick of the city, Baton's and leavers'
+  const savedPicks = relayItems.filter((item) => saved[city].includes(item.id) && (!category || item.category === category))
+  const picks = relaySaved ? savedPicks : cityPicks(city, status).filter(shown)
+  const people = (relaySaved ? [] : cityLeavers(city))
     .map((leaver) => ({ leaver, tips: leaverTips(leaver.id).filter(shown) }))
     .filter((row) => row.tips.length > 0)
   const onMap = [...picks, ...people.flatMap((row) => row.tips)].filter((item) => relaySpots[item.id])
   const pinnedItem = onMap.find((item) => item.id === pinned)
-  const headers = relayHeaders[status]
+  const headers = { picks: relaySaved ? relayCopy.saved : relayCopy.forYou, people: relayHeaders[status].people }
 
   return (
     <MainLayout bleed background={relayPage[relayLook]}>
@@ -159,14 +168,44 @@ export function Community() {
               mapOpen ? 'overflow-hidden pt-7' : 'overflow-y-auto pt-4',
             )}
           >
-            {/* Category filters, with search at the end */}
+            {/* Search on top, always (opens its own page), with the map beside it */}
+            {!mapOpen && (
+              <div data-relay-enter className="-mb-6 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('relay-search')}
+                  className={cx('flex h-12 min-w-0 flex-1 items-center gap-2.5 rounded-full px-4 text-left text-body text-ink-muted active:opacity-70', relayChipIdle[relayLook])}
+                >
+                  <SearchIcon className="size-[18px] shrink-0" />
+                  <span className="truncate">{relayCopy.searchIn(cities[city].name)}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-label={relayCopy.map}
+                  onClick={() => showMap(true)}
+                  className={cx('flex size-12 shrink-0 items-center justify-center rounded-full active:opacity-60', relayChipIdle[relayLook])}
+                >
+                  <MapIcon />
+                </button>
+              </div>
+            )}
+            {/* Saved first, then the categories */}
             <div data-relay-enter className="-mb-4">
-              <div className="-mx-gutter flex items-center gap-[26px] pr-gutter">
-                <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pl-gutter [scrollbar-width:none]">
-                  <CategoryChip look={relayLook} selected={!category} onClick={() => setCategory(null)}>
-                    {relayCopy.all}
-                  </CategoryChip>
-                  {relayCategories.map((item) => (
+              <div className="-mx-gutter flex gap-2 overflow-x-auto px-gutter [scrollbar-width:none]">
+                <CategoryChip look={relayLook} tone="yellow" selected={relaySaved} onClick={() => setState({ relaySaved: !relaySaved, relayFilter: null })}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="currentColor">
+                      <path d="M8 1.2l2 4.2 4.6.6-3.4 3.2.9 4.6L8 11.6 3.9 13.8l.9-4.6L1.4 6l4.6-.6L8 1.2z" />
+                    </svg>
+                    {relayCopy.saved}
+                  </span>
+                </CategoryChip>
+                <CategoryChip look={relayLook} selected={!category && !relaySaved} onClick={() => setCategory(null)}>
+                  {relayCopy.all}
+                </CategoryChip>
+                {relayChipIds.map((id) => {
+                  const item = relayCategory(id)
+                  return (
                     <CategoryChip
                       key={item.id}
                       tone={item.tone}
@@ -176,17 +215,8 @@ export function Community() {
                     >
                       {item.label}
                     </CategoryChip>
-                  ))}
-                </div>
-                {/* Opens search on its own page, like iOS apps do */}
-                <button
-                  type="button"
-                  aria-label="Search"
-                  onClick={() => navigate('relay-search')}
-                  className={cx('flex size-10 shrink-0 items-center justify-center rounded-full active:opacity-60', relayChipIdle[relayLook])}
-                >
-                  <SearchIcon className="size-[18px]" />
-                </button>
+                  )
+                })}
               </div>
             </div>
             {/* Below the filters: hidden behind the nav while the map shows */}
@@ -194,7 +224,7 @@ export function Community() {
               <RelayFeed look={relayLook} headers={headers} picks={picks} people={people} onOpen={open} />
 
               {picks.length === 0 && people.length === 0 && (
-                <p data-relay-enter className="text-subhead text-ink-muted">{relayCopy.noResults}</p>
+                <p data-relay-enter className="text-subhead text-ink-muted">{relaySaved ? relayCopy.savedEmpty : relayCopy.noResults}</p>
               )}
             </div>
           </div>
@@ -217,19 +247,19 @@ export function Community() {
           </button>
         )}
 
-        {/* Map view, floating just above the tab bar; the list comes back by swiping the sheet up */}
+        {/* Her city's stamp, floating bottom right above the nav. While she's
+            moving the other city's stamp peeks behind it; tapping switches */}
         {!mapOpen && (
-          <div className="absolute bottom-[103px] left-1/2 z-20 -translate-x-1/2">
-            <Button
-              variant="glow"
-              size="pill"
-              onClick={() => showMap(true)}
-              className="whitespace-nowrap active:scale-95"
-            >
-              <MapIcon />
-              {relayCopy.map}
-            </Button>
-          </div>
+          <button
+            type="button"
+            aria-label={other ? `Show ${cities[other].name}` : cities[city].name}
+            disabled={!other}
+            onClick={() => other && setState({ relayCity: other, relayFilter: null, relaySaved: false })}
+            className="absolute right-5 bottom-[110px] z-20 size-[84px] transition active:scale-95"
+          >
+            {other && <CityStamp key={`back-${other}`} city={other} size={60} className="absolute -top-4 -left-3 -rotate-12 animate-fade-in" />}
+            <CityStamp key={city} city={city} size={76} className="absolute right-0 bottom-0 rotate-6 animate-fade-in" />
+          </button>
         )}
       </div>
     </MainLayout>
