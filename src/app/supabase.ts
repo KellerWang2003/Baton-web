@@ -3,7 +3,7 @@ import type { ArchiveMoment } from '../data/archiveMoments'
 import type { CloudCategory, CloudPhoto } from '../ui/PhotoCloud'
 import { setState } from './store'
 
-// Captures persist in Supabase (table `captures`, bucket `capture-photos`; see
+// Captures persist in Supabase (table `baton_captures`, bucket `baton-capture-photos`; see
 // docs/supabase.sql). No sign-in in the prototype: there is one shared archive,
 // so every device that opens the app sees every capture. Without VITE_SUPABASE_URL and
 // VITE_SUPABASE_ANON_KEY in .env.local, everything stays in memory as before.
@@ -11,7 +11,8 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 const client = url && key ? createClient(url, key) : null
 
-const BUCKET = 'capture-photos'
+const TABLE = 'baton_captures'
+const BUCKET = 'baton-capture-photos'
 
 type Row = {
   id: string
@@ -55,7 +56,7 @@ export async function saveCapture(capture: CaptureToSave): Promise<string | null
       const { error } = await client.storage.from(BUCKET).upload(photoPath, capture.photo, { contentType: capture.photo.type || 'image/jpeg' })
       if (error) throw error
     }
-    const { data, error } = await client.from('captures').insert({
+    const { data, error } = await client.from(TABLE).insert({
       device_id: 'app',
       photo_path: photoPath,
       question: capture.question,
@@ -77,18 +78,18 @@ export async function saveCapture(capture: CaptureToSave): Promise<string | null
 }
 
 // A photo's address: a link or a file in the app's public folder as written,
-// anything else is a path in the capture-photos bucket
+// anything else is a path in the baton-capture-photos bucket
 function photoUrl(path: string) {
   if (!client || path.startsWith('/') || path.startsWith('http')) return path
   return client.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
 }
 
 // Bring the saved archive back (once, on start): every city's cloud and the
-// moments its photos open, from the captures table
+// moments its photos open, from the baton_captures table
 export async function loadSavedCaptures() {
   if (!client) return
   try {
-    const { data, error } = await client.from('captures').select('*').order('sort', { nullsFirst: false }).order('created_at')
+    const { data, error } = await client.from(TABLE).select('*').order('sort', { nullsFirst: false }).order('created_at')
     if (error) throw error
     const rows = ((data ?? []) as Row[]).filter((row) => row.photo_path && row.category && row.x !== null && row.y !== null && row.size !== null)
     const clouds: Record<string, CloudPhoto[]> = {}
@@ -132,7 +133,7 @@ export async function deleteCapture(city: string, photo: CloudPhoto) {
   })
   if (!client || !photo.id) return
   try {
-    const { data, error } = await client.from('captures').delete().eq('id', photo.id).select('photo_path, moment_photo')
+    const { data, error } = await client.from(TABLE).delete().eq('id', photo.id).select('photo_path, moment_photo')
     if (error) throw error
     const removed = (data ?? []) as Pick<Row, 'photo_path' | 'moment_photo'>[]
     const files = removed.flatMap((row) => [row.photo_path, row.moment_photo]).filter((p): p is string => !!p && !p.startsWith('/') && !p.startsWith('http'))
@@ -145,10 +146,10 @@ export async function deleteCapture(city: string, photo: CloudPhoto) {
 // Debug panel: forget the captures made in the app (the seeded archive stays)
 export async function clearSavedCaptures() {
   if (!client) return
-  const { data } = await client.from('captures').select('photo_path').is('seed_key', null)
+  const { data } = await client.from(TABLE).select('photo_path').is('seed_key', null)
   const paths = (data ?? []).map((row) => row.photo_path as string | null).filter((p): p is string => !!p && !p.startsWith('/') && !p.startsWith('http'))
   if (paths.length) await client.storage.from(BUCKET).remove(paths)
-  await client.from('captures').delete().is('seed_key', null)
+  await client.from(TABLE).delete().is('seed_key', null)
   setState({ addedPhotos: [], addedMoments: {} })
   await loadSavedCaptures()
 }
