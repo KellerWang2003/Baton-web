@@ -35,7 +35,7 @@ export function ArchiveIcon() {
   )
 }
 
-// Relay tab: the baton handed over, from the Figma nav (public/brand/relay-tab.svg).
+// Relay tab: a signpost, someone pointing the way (Keller, Nov 15; public/brand/relay-tab.svg).
 // Drawn as a mask so it takes the tab's text color like the line icons.
 export function RelayIcon() {
   return <span aria-hidden className="block size-5 bg-current [mask:url(/brand/relay-tab.svg)_center/contain_no-repeat]" />
