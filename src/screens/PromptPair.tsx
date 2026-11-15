@@ -3,11 +3,11 @@ import { placePrompt } from '../data/home'
 import { cx } from '../ui'
 import { MapPinIcon, PencilIcon, PromptCameraIcon } from '../ui/icons'
 
-// Prompt pair (experiment, Nov 15; Today with `?bubbles=pair`, from Keller's
-// sketch): today's prompt as a big glass circle, and the prompt from where she
+// Prompt pair (Nov 15, from Keller's sketch; replaced the swipeable slot): today's prompt as a big glass circle, and the prompt from where she
 // is as a second circle tucked behind it at the lower right, overlapping only
-// at the rims so each prompt stays centered in its circle. No fade or blur yet; friends stay in their row below.
-export function PromptPair({ daily }: { daily: { question: string; medium: 'photo' | 'write' } }) {
+// at the rims so each prompt stays centered in its circle. No fade or blur yet;
+// friends stay in their row below.
+export function PromptPair({ daily, onOpen }: { daily: { question: string; medium: 'photo' | 'write' }; onOpen: (circle: { cx: number; cy: number; size: number }) => void }) {
   return (
     <div className="relative -mx-gutter mt-6 h-[400px]">
       <Circle
@@ -17,17 +17,23 @@ export function PromptPair({ daily }: { daily: { question: string; medium: 'phot
         medium="photo"
         place={placePrompt.place}
         fontSize={17}
+        onOpen={onOpen}
       />
-      <Circle className="z-10" style={{ left: 30, top: 0, width: 250, height: 250 }} question={daily.question} medium={daily.medium} fontSize={22} />
+      <Circle className="z-10" style={{ left: 30, top: 0, width: 250, height: 250 }} question={daily.question} medium={daily.medium} fontSize={22} onOpen={onOpen} />
     </div>
   )
 }
 
-function Circle({ question, medium, place, fontSize, style, className, inset = 'px-[17%]' }: { question: string; medium: 'photo' | 'write'; place?: string; fontSize: number; style: CSSProperties; className?: string; inset?: string }) {
+function Circle({ question, medium, place, fontSize, style, className, inset = 'px-[17%]', onOpen }: { question: string; medium: 'photo' | 'write'; place?: string; fontSize: number; style: CSSProperties; className?: string; inset?: string; onOpen: (circle: { cx: number; cy: number; size: number }) => void }) {
   return (
     <button
       type="button"
       aria-label={question}
+      // A tap opens the camera from this circle, as Today's orb did
+      onClick={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect()
+        onOpen({ cx: rect.left + rect.width / 2, cy: rect.top + rect.height / 2, size: rect.width })
+      }}
       className={cx('absolute rounded-full transition active:scale-[0.98]', className)}
       style={{
         ...style,
