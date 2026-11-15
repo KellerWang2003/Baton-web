@@ -56,6 +56,8 @@ export const bubblePrompts: BubblePrompt[] = [
   { id: 'studio', question: 'Take a photo of your desk at the studio.', medium: 'photo', answer: '/wrapped/m11-apr19.jpg' },
   { id: 'sound', question: 'Write the sound you hear most at home.', medium: 'write' },
   { id: 'gym', question: 'Take a photo on your way to the gym.', medium: 'photo', place: 'Equinox' },
+  { id: 'market', question: 'Take a photo of the stall you always stop at.', medium: 'photo', place: 'Larchmont' },
+  { id: 'tj', question: 'Write the one thing you always buy here.', medium: 'write', place: "Trader Joe's" },
 ]
 
 // Friends' answers, each to one of the prompts above
