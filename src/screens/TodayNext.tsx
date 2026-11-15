@@ -12,11 +12,13 @@ import { MainLayout } from './MainLayout'
 import { PromptBubbles } from './PromptBubbles'
 import type { BubbleLayout } from './PromptBubbles'
 import { PromptMap } from './PromptMap'
+import { PromptPair } from './PromptPair'
 
 // Prompt bubbles experiment: Today with ?bubbles=a, b, c, map or map-frost
 const bubbleParam = new URLSearchParams(window.location.search).get('bubbles')
 const bubbleLayout = bubbleParam === 'a' || bubbleParam === 'b' || bubbleParam === 'c' ? (bubbleParam as BubbleLayout) : null
 const promptMap = bubbleParam === 'map'
+const promptPair = bubbleParam === 'pair'
 
 // IA v2 Today (Nov 15): answers "what about today?". One pick per slot, never
 // a list. Top to bottom: greeting and avatar; the Moving card while "I'm
@@ -44,7 +46,9 @@ export function TodayNext() {
         </div>
       )}
 
-      {promptMap ? (
+      {promptPair ? (
+        <PromptPair daily={{ question: prompt.question, medium }} />
+      ) : promptMap ? (
         <PromptMap daily={{ question: prompt.question, medium }} />
       ) : bubbleLayout ? (
         <PromptBubbles layout={bubbleLayout} daily={{ question: prompt.question, medium }} />
