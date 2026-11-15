@@ -9,6 +9,14 @@ import { findLeaver, relayAvatar, relayItems } from '../data/relay'
 import { daysUntil } from '../data/today'
 import { Avatar, CityStamp, MapPinIcon, MoveCard, PhotoOrb, PromptWindow, Scrap, cx } from '../ui'
 import { MainLayout } from './MainLayout'
+import { PromptBubbles } from './PromptBubbles'
+import type { BubbleLayout } from './PromptBubbles'
+
+// Prompt bubbles experiment: Today with ?bubbles=a, b or c
+const bubbleLayout = ((): BubbleLayout | null => {
+  const value = new URLSearchParams(window.location.search).get('bubbles')
+  return value === 'a' || value === 'b' || value === 'c' ? value : null
+})()
 
 // IA v2 Today (Nov 15): answers "what about today?". One pick per slot, never
 // a list. Top to bottom: greeting and avatar; the Moving card while "I'm
@@ -36,16 +44,20 @@ export function TodayNext() {
         </div>
       )}
 
-      <PromptSlot
-        question={prompt.question}
-        medium={medium}
-        glass={promptGlass}
-        tuning={glassTuning}
-        moves={orbMoves}
-      />
+      {bubbleLayout ? (
+        <PromptBubbles layout={bubbleLayout} daily={{ question: prompt.question, medium }} />
+      ) : (
+        <PromptSlot
+          question={prompt.question}
+          medium={medium}
+          glass={promptGlass}
+          tuning={glassTuning}
+          moves={orbMoves}
+        />
+      )}
 
       <div className="flex flex-col gap-10 pt-2">
-        <FriendsToday />
+        {!bubbleLayout && <FriendsToday />}
         <WorthGoing />
         <Regulars />
       </div>
