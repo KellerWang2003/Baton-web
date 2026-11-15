@@ -317,3 +317,12 @@ export function ExpandIcon({ className = 'size-5' }: { className?: string }) {
     </Icon>
   )
 }
+
+// Bookmark: filled when the pick is saved
+export function BookmarkIcon({ filled = false, className = 'size-6' }: { filled?: boolean; className?: string }) {
+  return (
+    <Icon className={className} fill={filled ? 'currentColor' : 'none'}>
+      <path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.2-6.5 4.2v-16a1 1 0 0 1 1-1Z" />
+    </Icon>
+  )
+}

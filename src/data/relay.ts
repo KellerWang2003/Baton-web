@@ -55,7 +55,7 @@ export type RelayItem = {
   quote?: string
   category: RelayCategory
   place?: string
-  // Where its pin sits on the Relay map (CityMap drawing coordinates)
+  // Where its pin sits on the Relay map (map drawing coordinates)
   map?: { x: number; y: number }
   body: string
   // Free Unsplash photos in public/relay/ (named by id); missing shows the placeholder
