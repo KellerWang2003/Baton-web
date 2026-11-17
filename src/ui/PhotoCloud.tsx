@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { toLocal } from '../app/localPoint'
 import { cx } from './cx'
 
@@ -63,6 +63,47 @@ const SPRING_DAMPING = 0.2
 type View = CloudView
 type Point = { x: number; y: number }
 
+// Room kept between any two photos, on the canvas: enough that their gentle
+// bob (photo-float, up to 2.5pt each way) never brings two edges together
+const GAP = 4
+
+// The layouts come from Figma (and photos added later), where circles can
+// touch or overlap. Nudge them apart, each as little as it can: every pass,
+// any two that are too close are pushed away from each other along the line
+// between them, the smaller one moving further, until none are.
+function separate(entries: CloudPhoto[]): CloudPhoto[] {
+  const placed = entries.map((photo) => ({ x: photo.x + photo.size / 2, y: photo.y + photo.size / 2, r: photo.size / 2 }))
+  for (let pass = 0; pass < 300; pass++) {
+    let moved = false
+    for (let i = 0; i < placed.length; i++) {
+      for (let j = i + 1; j < placed.length; j++) {
+        const a = placed[i]
+        const b = placed[j]
+        let dx = b.x - a.x
+        let dy = b.y - a.y
+        let distance = Math.hypot(dx, dy)
+        const need = a.r + b.r + GAP
+        if (distance >= need - 0.01) continue
+        // Two on the same spot: part them along a fixed slant
+        if (distance < 0.01) {
+          dx = 1
+          dy = 0.6
+          distance = Math.hypot(dx, dy)
+        }
+        const push = need - distance
+        const share = a.r / (a.r + b.r)
+        a.x -= (dx / distance) * push * (1 - share)
+        a.y -= (dy / distance) * push * (1 - share)
+        b.x += (dx / distance) * push * share
+        b.y += (dy / distance) * push * share
+        moved = true
+      }
+    }
+    if (!moved) break
+  }
+  return entries.map((photo, index) => ({ ...photo, x: placed[index].x - photo.size / 2, y: placed[index].y - photo.size / 2 }))
+}
+
 // A city's photos as small circles scattered over the page (Figma
 // ARCHIVE_detail default, 267:5273), on a canvas you can float around: drag
 // to move (it keeps gliding when you let go), pinch, ctrl/trackpad-pinch
@@ -72,9 +113,10 @@ type Point = { x: number; y: number }
 // finger: the ones near it move right along with it, the far ones trail behind
 // and wobble back into place.
 export function PhotoCloud({ photos: entries, focus = null, onSelect, onLongPress, hidden = null, resume = null, pop = true, className }: PhotoCloudProps) {
-  // Every photo sits where its row says (the Figma layout); relaying them out
-  // by shuffle stretched the cloud into a long, sparse column
-  const photos = entries
+  // Every photo sits where its row says (the Figma layout), nudged just enough
+  // that no two touch; relaying them out by shuffle stretched the cloud into
+  // a long, sparse column
+  const photos = useMemo(() => separate(entries), [entries])
   const height = Math.max(0, ...photos.map((photo) => photo.y + photo.size))
   // The area the photos actually cover on the canvas (the middle of the
   // canvas once every photo is deleted)
@@ -231,6 +273,18 @@ export function PhotoCloud({ photos: entries, focus = null, onSelect, onLongPres
     const speed = new Float32Array(count * 2)
     // A little variety so photos at the same distance don't move in step
     const weight = photos.map((_, index) => 0.8 + ((index * 37) % 10) / 22)
+    // Neighbors close enough that trailing could bring them together (each
+    // can trail MAX_LAG screen px, which is more canvas when zoomed out)
+    const reach = (2 * MAX_LAG) / MIN_SCALE + GAP
+    const neighbors: [number, number][] = []
+    for (let i = 0; i < count; i++) {
+      for (let j = i + 1; j < count; j++) {
+        const a = photos[i]
+        const b = photos[j]
+        const apart = Math.hypot(b.x + b.size / 2 - a.x - a.size / 2, b.y + b.size / 2 - a.y - a.size / 2)
+        if (apart - (a.size + b.size) / 2 < reach) neighbors.push([i, j])
+      }
+    }
     let previous: Point | null = null
     let previousFinger: Point | null = null
     let previousTime = performance.now()
@@ -285,6 +339,27 @@ export function PhotoCloud({ photos: entries, focus = null, onSelect, onLongPres
           offset[k] += speed[k] * dt
           energy += Math.abs(offset[k]) + Math.abs(speed[k])
         }
+      }
+      // Trailing by different amounts can bring two photos together: push any
+      // pair that's closer than the gap back apart, half each (offsets are
+      // screen px, so compare on the canvas and push back in screen px)
+      for (let pass = 0; pass < 3; pass++) {
+        for (const [i, j] of neighbors) {
+          const a = photos[i]
+          const b = photos[j]
+          const dx = b.x + b.size / 2 + offset[j * 2] / scale - (a.x + a.size / 2 + offset[i * 2] / scale)
+          const dy = b.y + b.size / 2 + offset[j * 2 + 1] / scale - (a.y + a.size / 2 + offset[i * 2 + 1] / scale)
+          const distance = Math.hypot(dx, dy) || 0.01
+          const need = (a.size + b.size) / 2 + GAP
+          if (distance >= need) continue
+          const push = ((need - distance) / 2) * scale
+          offset[i * 2] -= (dx / distance) * push
+          offset[i * 2 + 1] -= (dy / distance) * push
+          offset[j * 2] += (dx / distance) * push
+          offset[j * 2 + 1] += (dy / distance) * push
+        }
+      }
+      for (let i = 0; i < count; i++) {
         const node = photoRefs.current[i]
         // Offsets are screen px; the canvas is scaled, so divide back out
         if (node) node.style.transform = `translate3d(${offset[i * 2] / scale}px, ${offset[i * 2 + 1] / scale}px, 0)`
@@ -516,7 +591,7 @@ export function PhotoCloud({ photos: entries, focus = null, onSelect, onLongPres
               draggable={false}
               style={{ animationDelay: `${index * POP_STAGGER_MS}ms` }}
               className={cx(
-                pop && !resumeAt && 'animate-photo-pop',
+                pop && !resumeAt && 'animate-cloud-pop',
                 'size-full rounded-full bg-placeholder object-cover transition-[filter,opacity] duration-500 ease-out',
                 focus && photo.category !== focus && 'opacity-60 blur-[5px]',
                 entries[index] === hidden && 'invisible',
