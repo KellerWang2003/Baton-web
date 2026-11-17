@@ -67,7 +67,7 @@ Add each screen to `src/flow.ts` in this order with the right `stage`, so the de
 - Figma design file "LA28 Palms" (file key `Ee8SrVUeOgEZ7dScYXN6y9`): feature map frame 194:18, feature timeline 203:77
 - FigJam board "LA28" (file key `gNyglKW1dULTnCi8DwGWh0`): pitch, persona, features, brainstorm
 - TypeSafe AI (`@typesafe-ai/sdk`, Oct 21): for typed judgments (Choice, Noul, Score) in `api/` functions; follow the `typesafe-ai` skill and read docs.typesafe.ai before writing calls. Needs `TYPESAFE_API_KEY` in `.env.local` and Vercel, server-side only (never a `VITE_` key); the Vite config passes it to dev functions.
-- Deployed on Vercel (project "baton"): `main` is production, every PR gets a preview link
+- Deployed on Vercel (project "baton"): every push to `main` builds a production deployment and every PR gets a preview link, but the public URLs are pinned to v1 (see "v1 and v2" below)
 
 ## Brand
 
@@ -100,7 +100,14 @@ npm run preview  # serve the production build
 
 There are no tests yet. Run `npm run build` and `npm run lint` before committing.
 
-Workflow: work directly on `main` (Keller, Oct 21: the `showcase` branch was merged into `main` and is retired; `main` is both the team build and what reviewers see).
+Workflow: work directly on `main` (Keller, Oct 21: the `showcase` branch was merged into `main` and is retired; until Nov 16 `main` was also what reviewers saw; see below).
+
+### v1 and v2 (Nov 16)
+
+- **v1 is frozen.** It is the hackathon build: tag `v1` and branch `v1`, both at `720560b`. Its live demo is https://baton-svsd.vercel.app (and baton-svsd-showcase.vercel.app), pinned to that exact deployment. Only commit to `v1` for a fix the v1 demo truly needs, and never merge `main` into it.
+- **v2 is `main`.** It started as an unchanged copy of v1; all new work goes here (directly on `main`, as above). Other branches such as `ia-v2` merge into `main`, never into `v1`.
+- **How the pin works:** the Vercel project has "Auto-assign custom production domains" turned off, so production builds from `main` no longer take over baton-svsd.vercel.app. To see v2, open the latest `main` deployment from the Vercel dashboard or `baton-git-main-kellerwang2003s-projects.vercel.app` (behind Vercel login). To ship a v1 fix, push it to `v1` and point the alias at that build by hand (`vercel alias set <deployment-url> baton-svsd.vercel.app`, or in the dashboard). Don't turn auto-assign back on while v1 should stay up.
+- **Data:** v1 and, for now, v2 share the Supabase table `baton_captures` and bucket `baton-capture-photos` in "General playground". When v2 needs its own data or a different schema, give it separate `baton_v2_*` objects instead of changing the v1 ones, so the v1 demo keeps working.
 
 ## Design system (keep it swappable)
 
